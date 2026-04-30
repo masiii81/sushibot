@@ -3,7 +3,7 @@ import random
 import json
 import os
 import time
-from datetime import datetime, timedelta  # ←ここ！！
+from datetime import datetime, timedelta
 
 TOKEN = os.getenv("TOKEN")  # ←後でRenderに設定
 URL = os.getenv("MISSKEY_URL", "https://misskey.io/api/notes/create")
