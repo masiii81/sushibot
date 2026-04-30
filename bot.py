@@ -96,4 +96,25 @@ def run_server():
     server = HTTPServer(("0.0.0.0", port), Handler)
     server.serve_forever()
 
-threading.Thread(target=run_server).start()
+# ★ここで起動（重要）
+threading.Thread(target=run_server, daemon=True).start()
+
+
+# ↓↓↓ ここからbotループ ↓↓↓
+while True:
+    state = load_state()
+
+    now = datetime.utcnow()
+    now_jst = now + timedelta(hours=9)
+
+    run, key = should_run(now_jst, state.get("last_run",""))
+    if run:
+        text = generate_text(state.get("last"))
+        text = avoid_repeat(text, state.get("last"))
+        post(text)
+        state["last"] = text
+        state["last_run"] = key
+        save_state(state)
+        print("posted:", text)
+
+    time.sleep(60)
