@@ -4,8 +4,10 @@ import json
 import os
 import time
 from datetime import datetime, timedelta
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-TOKEN = os.getenv("TOKEN")  # ←後でRenderに設定
+TOKEN = os.getenv("TOKEN")
 URL = os.getenv("MISSKEY_URL", "https://misskey.io/api/notes/create")
 STATE_FILE = "state.json"
 
@@ -56,7 +58,6 @@ def avoid_repeat(new_text, last_text):
 def post(text):
     requests.post(URL, json={"i": TOKEN, "text": text})
 
-# ★ 9時と21時にだけ投稿（UTC→日本時間に調整）
 def should_run(now_jst, last_run):
     target_hours = [8, 12, 16, 20]
     key = now_jst.strftime("%Y-%m-%d-%H")
@@ -64,43 +65,7 @@ def should_run(now_jst, last_run):
         return True, key
     return False, last_run
 
-while True:
-    state = load_state()
-
-    # RenderはUTCなので+9時間でJSTに
-    now = datetime.utcnow()
-    now_jst = now + timedelta(hours=9)
-
-    run, key = should_run(now_jst, state.get("last_run",""))
-    if run:
-        text = generate_text(state.get("last"))
-        text = avoid_repeat(text, state.get("last"))
-        post(text)
-        state["last"] = text
-        state["last_run"] = key
-        save_state(state)
-        print("posted:", text)
-
-    time.sleep(60)
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b'OK')
-
-def run_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), Handler)
-    server.serve_forever()
-
-# ★ここで起動（重要）
-threading.Thread(target=run_server, daemon=True).start()
-
-
-# ↓↓↓ ここからbotループ ↓↓↓
+# ===== bot処理 =====
 def run_bot():
     while True:
         state = load_state()
@@ -120,4 +85,18 @@ def run_bot():
 
         time.sleep(60)
 
-    time.sleep(60)
+# ===== ダミーサーバー =====
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'OK')
+
+def run_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()
+
+# ===== 起動 =====
+threading.Thread(target=run_bot, daemon=True).start()
+run_server()
