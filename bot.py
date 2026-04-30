@@ -101,20 +101,23 @@ threading.Thread(target=run_server, daemon=True).start()
 
 
 # ↓↓↓ ここからbotループ ↓↓↓
-while True:
-    state = load_state()
+def run_bot():
+    while True:
+        state = load_state()
 
-    now = datetime.utcnow()
-    now_jst = now + timedelta(hours=9)
+        now = datetime.utcnow()
+        now_jst = now + timedelta(hours=9)
 
-    run, key = should_run(now_jst, state.get("last_run",""))
-    if run:
-        text = generate_text(state.get("last"))
-        text = avoid_repeat(text, state.get("last"))
-        post(text)
-        state["last"] = text
-        state["last_run"] = key
-        save_state(state)
-        print("posted:", text)
+        run, key = should_run(now_jst, state.get("last_run",""))
+        if run:
+            text = generate_text(state.get("last"))
+            text = avoid_repeat(text, state.get("last"))
+            post(text)
+            state["last"] = text
+            state["last_run"] = key
+            save_state(state)
+            print("posted:", text)
+
+        time.sleep(60)
 
     time.sleep(60)
